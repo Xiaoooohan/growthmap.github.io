@@ -6,311 +6,449 @@
     <title>Natural Growth Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;600&display=swap');
         
         body {
+            /* Using Outfit for UI, Lora (serif) for the chart to match the academic/data-viz feel of the uploaded image */
             font-family: 'Outfit', sans-serif;
-            background-color: #F9F8F6; /* Rice white */
+            background-color: #F8F9F5; /* Very light greenish-gray background from the chart */
             color: #2D3748;
+            margin: 0;
+            overflow: hidden; /* Prevent body scroll, handle inside */
         }
 
-        /* Custom pulsing animation for the next actionable point */
-        @keyframes pulse-green {
-            0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+        .chart-font {
+            font-family: 'Lora', serif;
         }
 
-        .pulse-point {
-            animation: pulse-green 2s infinite;
-            cursor: pointer;
-            transition: transform 0.2s;
+        /* Chart Animations */
+        .curve-path {
+            transition: stroke-dashoffset 0.5s ease-out;
+        }
+        
+        .curve-group:hover .curve-full {
+            stroke-width: 6;
+            opacity: 0.3;
+        }
+        
+        .curve-group:hover .curve-progress {
+            stroke-width: 6;
         }
 
-        .pulse-point:hover {
-            transform: scale(1.5);
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
         }
-
-        .nature-shadow {
-            box-shadow: 0 10px 25px -5px rgba(22, 101, 52, 0.1), 0 8px 10px -6px rgba(22, 101, 52, 0.1);
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="h-screen w-screen flex flex-col md:flex-row text-slate-800">
 
-    <!-- Header -->
-    <header class="bg-white/80 backdrop-blur-md border-b border-[#E2E8F0] sticky top-0 z-10">
-        <div class="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-2 cursor-pointer" onclick="app.renderDashboard()">
-                <!-- Leaf Icon -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Main Canvas Area -->
+    <main class="flex-1 relative h-full flex flex-col">
+        <!-- Header overlay -->
+        <header class="absolute top-0 left-0 w-full p-6 z-10 pointer-events-none flex justify-between items-start">
+            <div>
+                <h1 class="text-3xl font-semibold text-slate-800 chart-font tracking-tight">Global Growth Output</h1>
+                <p class="text-slate-500 text-sm mt-1 chart-font italic">Indexed mastery progression across multiple disciplines</p>
+            </div>
+        </header>
+
+        <!-- The SVG Canvas -->
+        <div id="canvas-container" class="flex-1 w-full h-full cursor-crosshair overflow-x-auto overflow-y-hidden pt-24 pb-8 px-8">
+            <!-- SVG will be injected here -->
+        </div>
+    </main>
+
+    <!-- Sidebar Controls -->
+    <aside class="w-full md:w-80 lg:w-96 bg-white border-l border-slate-200 h-full flex flex-col shadow-2xl z-20">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
                     <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
                 </svg>
-                <h1 class="text-2xl font-semibold text-[#166534]">Growth<span class="text-[#4ade80]">Curve</span></h1>
+                <h2 class="text-xl font-semibold">Journeys</h2>
             </div>
-            <button onclick="app.showCreateForm()" class="hidden md:block bg-[#166534] hover:bg-[#14532d] text-white px-5 py-2 rounded-full text-sm font-medium transition-colors">
-                Plant a New Seed
+            <button onclick="app.toggleForm()" class="bg-slate-800 hover:bg-slate-700 text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </button>
         </div>
-    </header>
 
-    <!-- Main Content Area -->
-    <main id="app-content" class="flex-grow max-w-5xl mx-auto px-6 py-8 w-full">
-        <!-- Content injected by JS -->
-    </main>
+        <!-- Add Form (Hidden by default) -->
+        <div id="add-form" class="hidden p-6 bg-slate-50 border-b border-slate-200 text-sm">
+            <h3 class="font-medium text-slate-700 mb-4">Plant a New Seed</h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-500 mb-1">Name</label>
+                    <input type="text" id="j-name" placeholder="e.g., Spanish, Guitar" class="w-full px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-slate-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-500 mb-1">Start Date</label>
+                    <input type="date" id="j-start" class="w-full px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-slate-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-1">Weeks</label>
+                        <input type="number" id="j-weeks" value="12" min="1" class="w-full px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-slate-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-1">Sessions/Wk</label>
+                        <input type="number" id="j-freq" value="3" min="1" max="7" class="w-full px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-slate-500">
+                    </div>
+                </div>
+                <button onclick="app.createJourney()" class="w-full mt-2 bg-[#2E7D32] hover:bg-[#1B5E20] text-white py-2 rounded-md font-medium transition-colors">
+                    Add to Timeline
+                </button>
+            </div>
+        </div>
+
+        <!-- Journey List -->
+        <div id="journey-list" class="flex-1 overflow-y-auto p-4 space-y-3">
+            <!-- Injected via JS -->
+        </div>
+    </aside>
 
     <script>
         const app = {
-            // In-memory state
+            // Colors extracted from the uploaded visualization PDF
+            palette: [
+                '#C62828', // Red (Oil palm)
+                '#1565C0', // Blue (Soybeans)
+                '#F57C00', // Orange (Maize)
+                '#2E7D32', // Green (Rice)
+                '#37474F', // Dark Gray/Green (Wheat)
+                '#6A1B9A', // Purple (Extra)
+                '#00838F'  // Teal (Extra)
+            ],
+
             state: {
-                journeys: [],
-                currentView: 'dashboard', // 'dashboard', 'create', 'journey'
-                activeJourneyId: null
+                isFormOpen: false,
+                journeys: []
             },
 
             init() {
-                this.renderDashboard();
-            },
+                // Set default date in form to today
+                document.getElementById('j-start').valueAsDate = new Date();
 
-            // --- Views ---
+                // Add some initial dummy data so the canvas isn't empty on first load
+                const today = new Date();
+                const twoMonthsAgo = new Date(); twoMonthsAgo.setMonth(today.getMonth() - 2);
+                const oneMonthAgo = new Date(); oneMonthAgo.setMonth(today.getMonth() - 1);
+                const twoWeeksAgo = new Date(); twoWeeksAgo.setDate(today.getDate() - 14);
 
-            renderDashboard() {
-                this.state.currentView = 'dashboard';
-                const container = document.getElementById('app-content');
+                this.state.journeys = [
+                    {
+                        id: 1,
+                        name: "Machine Learning",
+                        startDate: twoMonthsAgo.getTime(),
+                        weeks: 24,
+                        totalSessions: 24 * 3,
+                        currentSession: 35,
+                        color: this.palette[0] // Red
+                    },
+                    {
+                        id: 2,
+                        name: "Spanish",
+                        startDate: oneMonthAgo.getTime(),
+                        weeks: 16,
+                        totalSessions: 16 * 5,
+                        currentSession: 25,
+                        color: this.palette[1] // Blue
+                    },
+                    {
+                        id: 3,
+                        name: "Meditation",
+                        startDate: twoWeeksAgo.getTime(),
+                        weeks: 52,
+                        totalSessions: 52 * 7,
+                        currentSession: 14,
+                        color: this.palette[3] // Green
+                    }
+                ];
+
+                this.render();
                 
-                if (this.state.journeys.length === 0) {
-                    container.innerHTML = `
-                        <div class="flex flex-col items-center justify-center text-center mt-20">
-                            <div class="bg-white p-6 rounded-full nature-shadow mb-6">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4-4 4-10 0-14"/><path d="M12 22c-4-4-4-10 0-14"/><path d="M12 2v6"/></svg>
-                            </div>
-                            <h2 class="text-3xl font-semibold text-[#166534] mb-3">Your garden is empty</h2>
-                            <p class="text-gray-600 max-w-md mb-8">Start tracking an exponential growth journey. Whether it's fitness, a new language, or a skill, watch your S-Curve develop over time.</p>
-                            <button onclick="app.showCreateForm()" class="bg-[#4ade80] hover:bg-[#22c55e] text-white px-8 py-3 rounded-full text-lg font-medium transition-colors nature-shadow">
-                                Start a Journey
-                            </button>
-                        </div>
-                    `;
-                } else {
-                    let html = `<div class="flex justify-between items-end mb-8">
-                                    <h2 class="text-3xl font-semibold text-[#166534]">Your Journeys</h2>
-                                    <button onclick="app.showCreateForm()" class="text-[#166534] font-medium hover:text-[#4ade80] transition-colors">+ New Journey</button>
-                                </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">`;
-                    
-                    this.state.journeys.forEach(journey => {
-                        const progressPercent = Math.round((journey.currentSession / journey.totalSessions) * 100);
-                        html += `
-                            <div onclick="app.viewJourney(${journey.id})" class="bg-white rounded-2xl p-6 cursor-pointer nature-shadow hover:-translate-y-1 transition-transform border border-transparent hover:border-[#4ade80]">
-                                <h3 class="text-xl font-semibold mb-2">${journey.name}</h3>
-                                <p class="text-sm text-gray-500 mb-4">${journey.frequency} times/week • ${journey.weeks} weeks</p>
-                                <div class="w-full bg-[#F9F8F6] rounded-full h-2.5 mb-2 overflow-hidden">
-                                    <div class="bg-[#4ade80] h-2.5 rounded-full" style="width: ${progressPercent}%"></div>
-                                </div>
-                                <div class="flex justify-between text-xs text-gray-500">
-                                    <span>Session ${journey.currentSession} of ${journey.totalSessions}</span>
-                                    <span>${progressPercent}%</span>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    html += `</div>`;
-                    container.innerHTML = html;
-                }
+                // Re-render on resize to keep SVG perfectly fitted
+                window.addEventListener('resize', () => this.renderCanvas());
             },
 
-            showCreateForm() {
-                this.state.currentView = 'create';
-                const container = document.getElementById('app-content');
-                container.innerHTML = `
-                    <div class="max-w-xl mx-auto bg-white p-8 rounded-3xl nature-shadow">
-                        <button onclick="app.renderDashboard()" class="text-sm text-gray-500 hover:text-[#166534] mb-6 flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> Back
-                        </button>
-                        <h2 class="text-2xl font-semibold text-[#166534] mb-6">Plant a New Seed</h2>
-                        
-                        <div class="space-y-5">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Journey Name</label>
-                                <input type="text" id="j-name" placeholder="e.g., Fitness, Piano, Coding" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#4ade80] focus:border-transparent bg-[#F9F8F6]">
-                            </div>
-                            
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Times per week</label>
-                                    <select id="j-freq" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#4ade80] focus:border-transparent bg-[#F9F8F6]">
-                                        <option value="1">1 time</option>
-                                        <option value="2">2 times</option>
-                                        <option value="3" selected>3 times</option>
-                                        <option value="4">4 times</option>
-                                        <option value="5">5 times</option>
-                                        <option value="6">6 times</option>
-                                        <option value="7">Every day</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Weeks to Plateau</label>
-                                    <input type="number" id="j-weeks" value="12" min="1" max="100" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#4ade80] focus:border-transparent bg-[#F9F8F6]">
-                                </div>
-                            </div>
-
-                            <div class="pt-4">
-                                <button onclick="app.createJourney()" class="w-full bg-[#166534] hover:bg-[#14532d] text-white px-6 py-3 rounded-xl text-lg font-medium transition-colors">
-                                    Start Growing
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
+            toggleForm() {
+                this.state.isFormOpen = !this.state.isFormOpen;
+                document.getElementById('add-form').classList.toggle('hidden', !this.state.isFormOpen);
             },
 
             createJourney() {
-                const name = document.getElementById('j-name').value || 'My Journey';
-                const frequency = parseInt(document.getElementById('j-freq').value);
-                const weeks = parseInt(document.getElementById('j-weeks').value);
-                const totalSessions = frequency * weeks;
-
+                const name = document.getElementById('j-name').value || 'New Journey';
+                const startInput = document.getElementById('j-start').value;
+                const startDate = startInput ? new Date(startInput).getTime() : Date.now();
+                const weeks = parseInt(document.getElementById('j-weeks').value) || 12;
+                const frequency = parseInt(document.getElementById('j-freq').value) || 3;
+                
                 const newJourney = {
                     id: Date.now(),
                     name,
-                    frequency,
+                    startDate,
                     weeks,
-                    totalSessions,
-                    currentSession: 0
+                    totalSessions: weeks * frequency,
+                    currentSession: 0,
+                    color: this.palette[this.state.journeys.length % this.palette.length]
                 };
 
                 this.state.journeys.push(newJourney);
-                this.viewJourney(newJourney.id);
+                
+                // Reset form
+                document.getElementById('j-name').value = '';
+                this.toggleForm();
+                this.render();
             },
 
-            viewJourney(id) {
-                this.state.currentView = 'journey';
-                this.state.activeJourneyId = id;
+            logProgress(id) {
                 const journey = this.state.journeys.find(j => j.id === id);
-                if (!journey) return;
-
-                const container = document.getElementById('app-content');
-                
-                // Math for the S-Curve (Sigmoid)
-                // f(x) = 1 / (1 + e^-k(x-x0))
-                const width = 800;
-                const height = 400;
-                const paddingX = 40;
-                const paddingY = 40;
-                const usableWidth = width - (paddingX * 2);
-                const usableHeight = height - (paddingY * 2);
-                
-                const x0 = journey.totalSessions / 2;
-                const k = 10 / journey.totalSessions; // Spread the steepness nicely across total sessions
-
-                let fullPath = "";
-                let progressPath = "";
-                let points = [];
-
-                for (let i = 0; i <= journey.totalSessions; i++) {
-                    const yVal = 1 / (1 + Math.exp(-k * (i - x0))); // Returns 0.0 to 1.0
-                    
-                    const cx = paddingX + ((i / journey.totalSessions) * usableWidth);
-                    const cy = height - paddingY - (yVal * usableHeight);
-                    
-                    points.push({ session: i, x: cx, y: cy });
-
-                    const pointString = `${i === 0 ? 'M' : 'L'} ${cx} ${cy} `;
-                    fullPath += pointString;
-                    if (i <= journey.currentSession) {
-                        progressPath += pointString;
-                    }
+                if (journey && journey.currentSession < journey.totalSessions) {
+                    journey.currentSession++;
+                    this.render();
                 }
-
-                // Determine the "Next" point coordinates for the interactive button
-                const nextPoint = journey.currentSession < journey.totalSessions 
-                    ? points[journey.currentSession + 1] 
-                    : points[journey.totalSessions];
-
-                const currentPoint = points[journey.currentSession];
-
-                container.innerHTML = `
-                    <div class="mb-6 flex justify-between items-center">
-                        <button onclick="app.renderDashboard()" class="text-sm text-gray-500 hover:text-[#166534] flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> Back to Garden
-                        </button>
-                    </div>
-
-                    <div class="bg-white rounded-3xl p-8 nature-shadow mb-8 relative overflow-hidden">
-                        <!-- Decorative element -->
-                        <div class="absolute -top-10 -right-10 w-32 h-32 bg-[#4ade80] opacity-10 rounded-full blur-2xl"></div>
-
-                        <div class="flex justify-between items-end mb-8">
-                            <div>
-                                <h2 class="text-3xl font-semibold text-[#166534] mb-2">${journey.name}</h2>
-                                <p class="text-gray-500">Session ${journey.currentSession} of ${journey.totalSessions} • Plateau in ${journey.weeks} weeks</p>
-                            </div>
-                            ${journey.currentSession < journey.totalSessions ? `
-                                <button onclick="app.logProgress()" class="bg-[#166534] hover:bg-[#14532d] text-white px-6 py-2 rounded-full font-medium transition-colors shadow-lg flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                                    Log Session
-                                </button>
-                            ` : `
-                                <div class="bg-gray-100 text-[#166534] px-6 py-2 rounded-full font-medium flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-                                    Plateau Reached
-                                </div>
-                            `}
-                        </div>
-
-                        <!-- S-Curve Chart -->
-                        <div class="w-full overflow-x-auto">
-                            <svg viewBox="0 0 ${width} ${height}" class="w-full h-auto min-w-[600px] bg-[#F9F8F6] rounded-2xl border border-gray-100">
-                                <!-- Grid Lines -->
-                                <line x1="${paddingX}" y1="${height - paddingY}" x2="${width - paddingX}" y2="${height - paddingY}" stroke="#E2E8F0" stroke-width="1" />
-                                <line x1="${paddingX}" y1="${paddingY}" x2="${width - paddingX}" y2="${paddingY}" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="5,5" />
-                                
-                                <text x="${paddingX}" y="${height - paddingY + 20}" fill="#94A3B8" font-size="12">Start</text>
-                                <text x="${width - paddingX}" y="${height - paddingY + 20}" fill="#94A3B8" font-size="12" text-anchor="end">Plateau (Goal)</text>
-
-                                <!-- Full projected path (dashed/light) -->
-                                <path d="${fullPath}" fill="none" stroke="#bbf7d0" stroke-width="4" stroke-dasharray="8,8" stroke-linecap="round"/>
-                                
-                                <!-- Completed progress path (solid/dark) -->
-                                <path d="${progressPath}" fill="none" stroke="#166534" stroke-width="4" stroke-linecap="round"/>
-
-                                <!-- Completed Points -->
-                                ${points.slice(0, journey.currentSession + 1).map(p => `
-                                    <circle cx="${p.x}" cy="${p.y}" r="4" fill="#166534" />
-                                `).join('')}
-
-                                <!-- Current Progress Node -->
-                                <circle cx="${currentPoint.x}" cy="${currentPoint.y}" r="8" fill="#4ade80" stroke="#fff" stroke-width="3" />
-
-                                <!-- Interactive "Next" Node -->
-                                ${journey.currentSession < journey.totalSessions ? `
-                                    <g onclick="app.logProgress()" class="pulse-point">
-                                        <circle cx="${nextPoint.x}" cy="${nextPoint.y}" r="10" fill="#4ade80" />
-                                        <circle cx="${nextPoint.x}" cy="${nextPoint.y}" r="4" fill="#fff" />
-                                        <text x="${nextPoint.x}" y="${nextPoint.y - 20}" fill="#166534" font-size="12" font-weight="bold" text-anchor="middle" class="bg-white">Click to log</text>
-                                    </g>
-                                ` : ''}
-                            </svg>
-                        </div>
-                        
-                        <div class="mt-6 text-center text-sm text-gray-500">
-                            The curve grows slowly at first as you build foundations, accelerates as things click, and eventually plateaus as you reach mastery.
-                        </div>
-                    </div>
-                `;
             },
 
-            logProgress() {
-                const journey = this.state.journeys.find(j => j.id === this.state.activeJourneyId);
-                if (journey && journey.currentSession < journey.totalSessions) {
-                    journey.currentSession += 1;
-                    this.viewJourney(journey.id); // Re-render to show animation
+            deleteJourney(id) {
+                if(confirm("Are you sure you want to remove this journey?")) {
+                    this.state.journeys = this.state.journeys.filter(j => j.id !== id);
+                    this.render();
                 }
+            },
+
+            render() {
+                this.renderCanvas();
+                this.renderSidebar();
+            },
+
+            renderSidebar() {
+                const container = document.getElementById('journey-list');
+                
+                if (this.state.journeys.length === 0) {
+                    container.innerHTML = `<div class="text-center text-slate-400 mt-10 text-sm">No active journeys. Plant a seed above!</div>`;
+                    return;
+                }
+
+                container.innerHTML = this.state.journeys.map(j => {
+                    const percent = Math.round((j.currentSession / j.totalSessions) * 100);
+                    const isDone = j.currentSession >= j.totalSessions;
+                    
+                    return `
+                        <div class="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                            <!-- Color accent bar -->
+                            <div class="absolute left-0 top-0 bottom-0 w-1.5" style="background-color: ${j.color}"></div>
+                            
+                            <div class="ml-2">
+                                <div class="flex justify-between items-start mb-1">
+                                    <h4 class="font-medium text-slate-800">${j.name}</h4>
+                                    <button onclick="app.deleteJourney(${j.id})" class="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                    </button>
+                                </div>
+                                <div class="text-xs text-slate-500 mb-3">
+                                    Started ${new Date(j.startDate).toLocaleDateString()} • ${j.weeks}wks
+                                </div>
+                                
+                                <div class="flex items-center gap-3">
+                                    <button 
+                                        onclick="app.logProgress(${j.id})" 
+                                        ${isDone ? 'disabled' : ''}
+                                        class="flex-1 py-1.5 rounded text-sm font-medium transition-colors flex items-center justify-center gap-1
+                                            ${isDone ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'text-white hover:opacity-90'}"
+                                        style="background-color: ${isDone ? '' : j.color}">
+                                        ${isDone ? 'Mastered' : '+ Log Session'}
+                                    </button>
+                                    <div class="text-xs font-semibold w-12 text-right" style="color: ${j.color}">
+                                        ${percent}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            renderCanvas() {
+                const container = document.getElementById('canvas-container');
+                const rect = container.getBoundingClientRect();
+                
+                // Set a minimum width for the SVG to allow horizontal scrolling if it gets too cramped
+                const minWidth = 800;
+                const width = Math.max(rect.width, minWidth);
+                const height = rect.height;
+
+                // Margins for axes
+                const ml = 60, mr = 180, mt = 40, mb = 60; 
+                const innerW = width - ml - mr;
+                const innerH = height - mt - mb;
+
+                if (this.state.journeys.length === 0) {
+                    container.innerHTML = `<svg width="100%" height="100%"><text x="50%" y="50%" text-anchor="middle" fill="#94A3B8" class="chart-font">Add a journey to begin tracking the timeline.</text></svg>`;
+                    return;
+                }
+
+                // 1. Calculate global timeline bounds
+                let globalMinTime = Infinity;
+                let globalMaxTime = -Infinity;
+
+                this.state.journeys.forEach(j => {
+                    const durationMs = j.weeks * 7 * 24 * 60 * 60 * 1000;
+                    const endTime = j.startDate + durationMs;
+                    if (j.startDate < globalMinTime) globalMinTime = j.startDate;
+                    if (endTime > globalMaxTime) globalMaxTime = endTime;
+                });
+
+                // Add padding to timeline (5% before, 10% after for labels)
+                const timeSpan = globalMaxTime - globalMinTime;
+                // If only 1 day span, default it to a month to prevent division by zero
+                const paddedSpan = timeSpan === 0 ? (30 * 24 * 60 * 60 * 1000) : timeSpan; 
+                const renderMinTime = globalMinTime - (paddedSpan * 0.05);
+                const renderMaxTime = globalMaxTime + (paddedSpan * 0.05);
+
+                // Helper to map timestamp to X coordinate
+                const mapX = (time) => ml + ((time - renderMinTime) / (renderMaxTime - renderMinTime)) * innerW;
+                // Helper to map 0-1 progress to Y coordinate
+                const mapY = (val) => mt + innerH - (val * innerH);
+
+                let svgContent = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" class="w-full h-full">`;
+
+                // --- Draw Y-Axis & Grid Lines (0, 500, 1000, 1500, etc - imitating the chart style) ---
+                // We'll translate our 0-100% to 0-3000 index scale purely for the visual aesthetic of the PDF
+                const yTicks = [0, 500, 1000, 1500, 2000, 2500, 3000];
+                yTicks.forEach(tick => {
+                    const val = tick / 3000; // normalized 0-1
+                    const y = mapY(val);
+                    // Light green/gray grid line
+                    svgContent += `<line x1="${ml}" y1="${y}" x2="${width - mr + 20}" y2="${y}" stroke="#E2E8F0" stroke-width="1.5"/>`;
+                    // Label
+                    svgContent += `<text x="${ml - 10}" y="${y + 4}" fill="#64748B" font-size="11" text-anchor="end" class="chart-font">${tick.toLocaleString()}</text>`;
+                });
+
+                // Y-Axis title
+                svgContent += `<text x="-${height/2}" y="15" fill="#64748B" font-size="12" font-weight="600" text-anchor="middle" transform="rotate(-90)" class="chart-font">Mastery Index (0 = 0, 3000 = 100%)</text>`;
+                // "1961 baseline" equivalent
+                svgContent += `<text x="${ml + 5}" y="${mapY(0) - 5}" fill="#64748B" font-size="11" class="chart-font italic">Baseline start</text>`;
+
+                // --- Draw X-Axis (Years/Months) ---
+                // Determine sensible ticks based on timeSpan
+                const spanDays = paddedSpan / (1000 * 60 * 60 * 24);
+                let tickIntervalMonths = 1;
+                if (spanDays > 1000) tickIntervalMonths = 12; // Yearly if > 3 years
+                else if (spanDays > 300) tickIntervalMonths = 3; // Quarterly if > 10 months
+
+                let currentTick = new Date(renderMinTime);
+                currentTick.setDate(1); // Start of month
+                
+                while (currentTick.getTime() <= renderMaxTime) {
+                    const x = mapX(currentTick.getTime());
+                    if (x >= ml && x <= width - mr) {
+                        const label = spanDays > 1000 ? currentTick.getFullYear() : currentTick.toLocaleDateString('default', { month: 'short', year: 'numeric' });
+                        
+                        // Tick mark
+                        svgContent += `<line x1="${x}" y1="${mapY(0)}" x2="${x}" y2="${mapY(0) + 5}" stroke="#94A3B8" stroke-width="1.5"/>`;
+                        // Label
+                        svgContent += `<text x="${x}" y="${mapY(0) + 20}" fill="#64748B" font-size="11" text-anchor="middle" class="chart-font">${label}</text>`;
+                    }
+                    currentTick.setMonth(currentTick.getMonth() + tickIntervalMonths);
+                }
+
+                // Solid axis line
+                svgContent += `<line x1="${ml}" y1="${mapY(0)}" x2="${width - mr + 20}" y2="${mapY(0)}" stroke="#94A3B8" stroke-width="1.5"/>`;
+
+
+                // --- Draw Journeys ---
+                // Sort by current percent so higher values are drawn last (on top)
+                const sortedJourneys = [...this.state.journeys].sort((a,b) => (a.currentSession/a.totalSessions) - (b.currentSession/b.totalSessions));
+
+                sortedJourneys.forEach((j) => {
+                    const durationMs = j.weeks * 7 * 24 * 60 * 60 * 1000;
+                    
+                    // Generate points for the S-Curve
+                    const pointsCount = 100;
+                    const midpoint = j.totalSessions / 2;
+                    const k = 10 / j.totalSessions; // Steepness
+
+                    let pathDataFull = "";
+                    let pathDataProgress = "";
+                    let lastProgressX, lastProgressY;
+                    let endX, endY;
+
+                    for (let i = 0; i <= pointsCount; i++) {
+                        // Math logic
+                        const sessionEquivalent = (i / pointsCount) * j.totalSessions;
+                        const timeEquivalent = j.startDate + (i / pointsCount) * durationMs;
+                        
+                        // Sigmoid function
+                        const yVal = 1 / (1 + Math.exp(-k * (sessionEquivalent - midpoint)));
+                        
+                        const px = mapX(timeEquivalent);
+                        const py = mapY(yVal);
+                        
+                        if (i === pointsCount) {
+                            endX = px; endY = py;
+                        }
+
+                        const cmd = i === 0 ? 'M' : 'L';
+                        const pointStr = `${cmd} ${px} ${py} `;
+                        
+                        pathDataFull += pointStr;
+
+                        // Only build the solid path up to the current progress
+                        if (sessionEquivalent <= j.currentSession) {
+                            pathDataProgress += pointStr;
+                            lastProgressX = px;
+                            lastProgressY = py;
+                        }
+                    }
+
+                    // For instances where progress is exactly 0
+                    if (!lastProgressX) {
+                        lastProgressX = mapX(j.startDate);
+                        lastProgressY = mapY(1 / (1 + Math.exp(-k * (0 - midpoint))));
+                        pathDataProgress = `M ${lastProgressX} ${lastProgressY}`;
+                    }
+
+                    // Group for hover effects
+                    svgContent += `<g class="curve-group cursor-pointer">`;
+
+                    // Full projected path (faded/dashed)
+                    svgContent += `<path d="${pathDataFull}" fill="none" stroke="${j.color}" stroke-width="2" stroke-dasharray="4,4" opacity="0.4" class="curve-full transition-all duration-300"/>`;
+
+                    // Completed progress path (solid, thick)
+                    svgContent += `<path d="${pathDataProgress}" fill="none" stroke="${j.color}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" class="curve-progress transition-all duration-300"/>`;
+
+                    // Current node dot
+                    svgContent += `<circle cx="${lastProgressX}" cy="${lastProgressY}" r="4" fill="${j.color}" stroke="#fff" stroke-width="1.5" />`;
+
+                    // Label at the end of the line (matching the PDF aesthetic)
+                    const percentStr = Math.round((j.currentSession / j.totalSessions) * 3000); // Translated to the 3000 scale
+                    svgContent += `
+                        <text x="${endX + 8}" y="${endY + 4}" fill="${j.color}" font-size="13" font-weight="600" class="chart-font">
+                            ${j.name} (${percentStr})
+                        </text>
+                    `;
+
+                    svgContent += `</g>`;
+                });
+
+                svgContent += `</svg>`;
+                container.innerHTML = svgContent;
             }
         };
 
-        // Initialize the app when the DOM is loaded
+        // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
             app.init();
         });
