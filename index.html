@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Natural Growth Tracker</title>
     
-    <!-- This is your new site logo (favicon)! -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,19 +12,17 @@
         @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;600&display=swap');
         
         body {
-            /* Using Outfit for UI, Lora (serif) for the chart to match the academic/data-viz feel of the uploaded image */
             font-family: 'Outfit', sans-serif;
-            background-color: #F8F9F5; /* Very light greenish-gray background from the chart */
+            background-color: #F8F9F5;
             color: #2D3748;
             margin: 0;
-            overflow: hidden; /* Prevent body scroll, handle inside */
+            overflow: hidden; 
         }
 
         .chart-font {
             font-family: 'Lora', serif;
         }
 
-        /* Chart Animations */
         .curve-path {
             transition: stroke-dashoffset 0.5s ease-out;
         }
@@ -39,7 +36,6 @@
             stroke-width: 6;
         }
 
-        /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -60,7 +56,6 @@
 
     <!-- Main Canvas Area -->
     <main class="flex-1 relative h-full flex flex-col">
-        <!-- Header overlay -->
         <header class="absolute top-0 left-0 w-full p-6 z-10 pointer-events-none flex justify-between items-start">
             <div>
                 <h1 class="text-3xl font-semibold text-slate-800 chart-font tracking-tight">Global Growth Output</h1>
@@ -68,7 +63,6 @@
             </div>
         </header>
 
-        <!-- The SVG Canvas -->
         <div id="canvas-container" class="flex-1 w-full h-full cursor-crosshair overflow-x-auto overflow-y-hidden pt-24 pb-8 px-8">
             <!-- SVG will be injected here -->
         </div>
@@ -84,7 +78,7 @@
                 </svg>
                 <h2 class="text-xl font-semibold">Journeys</h2>
             </div>
-            <button onclick="app.toggleForm()" class="bg-slate-800 hover:bg-slate-700 text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors shadow-sm">
+            <button onclick="window.app.toggleForm()" class="bg-slate-800 hover:bg-slate-700 text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors shadow-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </button>
         </div>
@@ -113,19 +107,17 @@
                 </div>
                 <div>
                     <label class="block text-xs text-slate-500 mb-1">Color Theme</label>
-                    <div class="flex items-center gap-2 mb-2" id="palette-swatches">
-                        <!-- Swatches injected via JS -->
-                    </div>
+                    <div class="flex items-center gap-2 mb-2" id="palette-swatches"></div>
                     <div class="flex items-center gap-2">
                         <input type="color" id="j-color" value="#2E7D32" class="h-8 w-12 cursor-pointer rounded border border-slate-300 p-0.5 bg-white">
                         <span class="text-xs text-slate-500">Custom color</span>
                     </div>
                 </div>
                 <div class="flex gap-2 mt-4">
-                    <button onclick="app.saveJourney()" id="form-submit-btn" class="flex-1 bg-[#2E7D32] hover:bg-[#1B5E20] text-white py-2 rounded-md font-medium transition-colors">
+                    <button onclick="window.app.saveJourney()" id="form-submit-btn" class="flex-1 bg-[#2E7D32] hover:bg-[#1B5E20] text-white py-2 rounded-md font-medium transition-colors">
                         Add to Timeline
                     </button>
-                    <button onclick="app.cancelEdit()" id="form-cancel-btn" class="hidden px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 py-2 rounded-md font-medium transition-colors">
+                    <button onclick="window.app.cancelEdit()" id="form-cancel-btn" class="hidden px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 py-2 rounded-md font-medium transition-colors">
                         Cancel
                     </button>
                 </div>
@@ -138,30 +130,52 @@
         </div>
     </aside>
 
-    <script>
-        const app = {
-            // Colors extracted from the uploaded visualization PDF
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl mx-4">
+            <h3 class="text-lg font-semibold text-slate-800 mb-2">Remove Journey?</h3>
+            <p class="text-sm text-slate-500 mb-6">This will permanently remove the journey and its progress from your timeline. This action cannot be undone.</p>
+            <div class="flex gap-3 justify-end">
+                <button onclick="window.app.closeDeleteModal()" class="px-4 py-2 rounded-md text-slate-600 hover:bg-slate-100 transition-colors font-medium text-sm">Cancel</button>
+                <button onclick="window.app.confirmDelete()" class="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white transition-colors font-medium text-sm shadow-sm">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script with Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Initialize Firebase Storage Infrastructure
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const firebaseApp = initializeApp(firebaseConfig);
+        const auth = getAuth(firebaseApp);
+        const db = getFirestore(firebaseApp);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        let currentUser = null;
+        let unsubscribeJourneys = null;
+
+        window.app = {
             palette: [
-                '#C62828', // Red (Oil palm)
-                '#1565C0', // Blue (Soybeans)
-                '#F57C00', // Orange (Maize)
-                '#2E7D32', // Green (Rice)
-                '#37474F', // Dark Gray/Green (Wheat)
-                '#6A1B9A', // Purple (Extra)
-                '#00838F'  // Teal (Extra)
+                '#C62828', '#1565C0', '#F57C00', '#2E7D32', '#37474F', '#6A1B9A', '#00838F'
             ],
 
             state: {
                 isFormOpen: false,
                 editingId: null,
+                pendingDeleteId: null,
+                isLoading: true,
                 journeys: []
             },
 
-            init() {
-                // Set default date in form to today
+            async init() {
+                // Initialize form defaults
                 document.getElementById('j-start').valueAsDate = new Date();
 
-                // Build palette swatches automatically from the chart colors
+                // Build palette swatches automatically
                 const swatchesContainer = document.getElementById('palette-swatches');
                 this.palette.forEach(color => {
                     const btn = document.createElement('button');
@@ -171,46 +185,52 @@
                     swatchesContainer.appendChild(btn);
                 });
 
-                // Add some initial dummy data so the canvas isn't empty on first load
-                const today = new Date();
-                const twoMonthsAgo = new Date(); twoMonthsAgo.setMonth(today.getMonth() - 2);
-                const oneMonthAgo = new Date(); oneMonthAgo.setMonth(today.getMonth() - 1);
-                const twoWeeksAgo = new Date(); twoWeeksAgo.setDate(today.getDate() - 14);
+                this.render(); // Initial render for loading state
 
-                this.state.journeys = [
-                    {
-                        id: 1,
-                        name: "Machine Learning",
-                        startDate: twoMonthsAgo.getTime(),
-                        weeks: 24,
-                        totalSessions: 24 * 3,
-                        currentSession: 35,
-                        color: this.palette[0] // Red
-                    },
-                    {
-                        id: 2,
-                        name: "Spanish",
-                        startDate: oneMonthAgo.getTime(),
-                        weeks: 16,
-                        totalSessions: 16 * 5,
-                        currentSession: 25,
-                        color: this.palette[1] // Blue
-                    },
-                    {
-                        id: 3,
-                        name: "Meditation",
-                        startDate: twoWeeksAgo.getTime(),
-                        weeks: 52,
-                        totalSessions: 52 * 7,
-                        currentSession: 14,
-                        color: this.palette[3] // Green
+                // Authenticate User FIRST
+                const initAuth = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
                     }
-                ];
+                };
 
-                this.render();
-                
-                // Re-render on resize to keep SVG perfectly fitted
+                await initAuth();
+
+                // Track authentication state
+                onAuthStateChanged(auth, (user) => {
+                    currentUser = user;
+                    if (user) {
+                        this.setupFirestoreListener();
+                    } else {
+                        if (unsubscribeJourneys) unsubscribeJourneys();
+                        this.state.journeys = [];
+                        this.state.isLoading = false;
+                        this.render();
+                    }
+                });
+
                 window.addEventListener('resize', () => this.renderCanvas());
+            },
+
+            setupFirestoreListener() {
+                if (!currentUser) return;
+                
+                const journeysRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'journeys');
+                
+                unsubscribeJourneys = onSnapshot(journeysRef, (snapshot) => {
+                    this.state.journeys = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    this.state.isLoading = false;
+                    this.render();
+                }, (error) => {
+                    console.error("Firestore listener error:", error);
+                    this.state.isLoading = false;
+                    this.render();
+                });
             },
 
             toggleForm() {
@@ -227,19 +247,16 @@
 
                 this.state.editingId = id;
                 
-                // Populate form
                 document.getElementById('j-name').value = journey.name;
                 document.getElementById('j-start').valueAsDate = new Date(journey.startDate);
                 document.getElementById('j-weeks').value = journey.weeks;
                 document.getElementById('j-freq').value = Math.round(journey.totalSessions / journey.weeks);
                 document.getElementById('j-color').value = journey.color;
 
-                // Update UI for editing
                 document.getElementById('form-title').innerText = "Edit Journey";
                 document.getElementById('form-submit-btn').innerText = "Save Changes";
                 document.getElementById('form-cancel-btn').classList.remove('hidden');
 
-                // Open form if closed
                 if (!this.state.isFormOpen) {
                     this.state.isFormOpen = true;
                     document.getElementById('add-form').classList.remove('hidden');
@@ -249,20 +266,20 @@
             cancelEdit() {
                 this.state.editingId = null;
                 
-                // Reset form to default creation state
                 document.getElementById('j-name').value = '';
                 document.getElementById('j-start').valueAsDate = new Date();
                 document.getElementById('j-weeks').value = 12;
                 document.getElementById('j-freq').value = 3;
                 document.getElementById('j-color').value = this.palette[this.state.journeys.length % this.palette.length];
 
-                // Reset UI buttons
                 document.getElementById('form-title').innerText = "Plant a New Seed";
                 document.getElementById('form-submit-btn').innerText = "Add to Timeline";
                 document.getElementById('form-cancel-btn').classList.add('hidden');
             },
 
-            saveJourney() {
+            async saveJourney() {
+                if (!currentUser) return;
+
                 const name = document.getElementById('j-name').value || 'New Journey';
                 const startInput = document.getElementById('j-start').value;
                 const startDate = startInput ? new Date(startInput).getTime() : Date.now();
@@ -271,55 +288,72 @@
                 const color = document.getElementById('j-color').value || this.palette[0];
                 const totalSessions = weeks * frequency;
 
-                if (this.state.editingId) {
-                    // Update existing journey
-                    const journey = this.state.journeys.find(j => j.id === this.state.editingId);
-                    if (journey) {
-                        journey.name = name;
-                        journey.startDate = startDate;
-                        journey.weeks = weeks;
-                        journey.color = color;
-                        journey.totalSessions = totalSessions;
+                try {
+                    if (this.state.editingId) {
+                        // Update existing database document
+                        const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'journeys', this.state.editingId);
                         
-                        // Ensure current session isn't out of bounds if they shortened the goal
-                        if (journey.currentSession > totalSessions) {
-                            journey.currentSession = totalSessions;
-                        }
+                        // Prevent session count overflow if goal was shortened
+                        const existing = this.state.journeys.find(j => j.id === this.state.editingId);
+                        let safeCurrentSession = existing ? existing.currentSession : 0;
+                        if (safeCurrentSession > totalSessions) safeCurrentSession = totalSessions;
+
+                        await updateDoc(docRef, {
+                            name, startDate, weeks, totalSessions, currentSession: safeCurrentSession, color
+                        });
+                    } else {
+                        // Create new database document
+                        const journeysRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'journeys');
+                        const newDocRef = doc(journeysRef, Date.now().toString());
+                        await setDoc(newDocRef, {
+                            name, startDate, weeks, totalSessions, currentSession: 0, color, createdAt: Date.now()
+                        });
                     }
-                } else {
-                    // Create new journey
-                    const newJourney = {
-                        id: Date.now(),
-                        name,
-                        startDate,
-                        weeks,
-                        totalSessions,
-                        currentSession: 0,
-                        color
-                    };
-                    this.state.journeys.push(newJourney);
+                } catch (error) {
+                    console.error("Error saving to cloud:", error);
                 }
                 
                 this.cancelEdit();
                 if(this.state.isFormOpen) {
                     this.toggleForm(); 
                 }
-                this.render();
             },
 
-            logProgress(id) {
+            async logProgress(id) {
+                if (!currentUser) return;
+
                 const journey = this.state.journeys.find(j => j.id === id);
                 if (journey && journey.currentSession < journey.totalSessions) {
-                    journey.currentSession++;
-                    this.render();
+                    try {
+                        const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'journeys', id);
+                        await updateDoc(docRef, { currentSession: journey.currentSession + 1 });
+                    } catch (error) {
+                        console.error("Error updating progress:", error);
+                    }
                 }
             },
 
             deleteJourney(id) {
-                if(confirm("Are you sure you want to remove this journey?")) {
-                    this.state.journeys = this.state.journeys.filter(j => j.id !== id);
-                    this.render();
+                this.state.pendingDeleteId = id;
+                document.getElementById('delete-modal').classList.remove('hidden');
+            },
+
+            closeDeleteModal() {
+                this.state.pendingDeleteId = null;
+                document.getElementById('delete-modal').classList.add('hidden');
+            },
+
+            async confirmDelete() {
+                if (!currentUser || !this.state.pendingDeleteId) return;
+
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'journeys', this.state.pendingDeleteId);
+                    await deleteDoc(docRef);
+                } catch (error) {
+                    console.error("Error deleting document:", error);
                 }
+
+                this.closeDeleteModal();
             },
 
             render() {
@@ -330,28 +364,35 @@
             renderSidebar() {
                 const container = document.getElementById('journey-list');
                 
+                if (this.state.isLoading) {
+                    container.innerHTML = `<div class="text-center text-slate-400 mt-10 text-sm animate-pulse">Loading journeys...</div>`;
+                    return;
+                }
+
                 if (this.state.journeys.length === 0) {
                     container.innerHTML = `<div class="text-center text-slate-400 mt-10 text-sm">No active journeys. Plant a seed above!</div>`;
                     return;
                 }
 
-                container.innerHTML = this.state.journeys.map(j => {
+                // Sort journeys so they display consistently 
+                const displayJourneys = [...this.state.journeys].sort((a,b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+                container.innerHTML = displayJourneys.map(j => {
                     const percent = Math.round((j.currentSession / j.totalSessions) * 100);
                     const isDone = j.currentSession >= j.totalSessions;
                     
                     return `
                         <div class="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                            <!-- Color accent bar -->
                             <div class="absolute left-0 top-0 bottom-0 w-1.5" style="background-color: ${j.color}"></div>
                             
                             <div class="ml-2">
                                 <div class="flex justify-between items-start mb-1">
                                     <h4 class="font-medium text-slate-800">${j.name}</h4>
                                     <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onclick="app.editJourney(${j.id})" class="text-slate-400 hover:text-blue-600 p-1" title="Edit">
+                                        <button onclick="window.app.editJourney('${j.id}')" class="text-slate-400 hover:text-blue-600 p-1" title="Edit">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                                         </button>
-                                        <button onclick="app.deleteJourney(${j.id})" class="text-slate-400 hover:text-red-500 p-1" title="Delete">
+                                        <button onclick="window.app.deleteJourney('${j.id}')" class="text-slate-400 hover:text-red-500 p-1" title="Delete">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                                         </button>
                                     </div>
@@ -362,7 +403,7 @@
                                 
                                 <div class="flex items-center gap-3">
                                     <button 
-                                        onclick="app.logProgress(${j.id})" 
+                                        onclick="window.app.logProgress('${j.id}')" 
                                         ${isDone ? 'disabled' : ''}
                                         class="flex-1 py-1.5 rounded text-sm font-medium transition-colors flex items-center justify-center gap-1
                                             ${isDone ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'text-white hover:opacity-90'}"
@@ -383,22 +424,24 @@
                 const container = document.getElementById('canvas-container');
                 const rect = container.getBoundingClientRect();
                 
-                // Set a minimum width for the SVG to allow horizontal scrolling if it gets too cramped
                 const minWidth = 800;
                 const width = Math.max(rect.width, minWidth);
                 const height = rect.height;
 
-                // Margins for axes
                 const ml = 60, mr = 180, mt = 40, mb = 60; 
                 const innerW = width - ml - mr;
                 const innerH = height - mt - mb;
+
+                if (this.state.isLoading) {
+                    container.innerHTML = `<svg width="100%" height="100%"><text x="50%" y="50%" text-anchor="middle" fill="#94A3B8" class="chart-font animate-pulse">Loading timeline...</text></svg>`;
+                    return;
+                }
 
                 if (this.state.journeys.length === 0) {
                     container.innerHTML = `<svg width="100%" height="100%"><text x="50%" y="50%" text-anchor="middle" fill="#94A3B8" class="chart-font">Add a journey to begin tracking the timeline.</text></svg>`;
                     return;
                 }
 
-                // 1. Calculate global timeline bounds
                 let globalMinTime = Infinity;
                 let globalMaxTime = -Infinity;
 
@@ -409,75 +452,57 @@
                     if (endTime > globalMaxTime) globalMaxTime = endTime;
                 });
 
-                // Add padding to timeline (5% before, 10% after for labels)
                 const timeSpan = globalMaxTime - globalMinTime;
-                // If only 1 day span, default it to a month to prevent division by zero
                 const paddedSpan = timeSpan === 0 ? (30 * 24 * 60 * 60 * 1000) : timeSpan; 
                 const renderMinTime = globalMinTime - (paddedSpan * 0.05);
                 const renderMaxTime = globalMaxTime + (paddedSpan * 0.05);
 
-                // Helper to map timestamp to X coordinate
                 const mapX = (time) => ml + ((time - renderMinTime) / (renderMaxTime - renderMinTime)) * innerW;
-                // Helper to map 0-1 progress to Y coordinate
                 const mapY = (val) => mt + innerH - (val * innerH);
 
                 let svgContent = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" class="w-full h-full">`;
 
-                // --- Draw Y-Axis & Grid Lines (0, 500, 1000, 1500, etc - imitating the chart style) ---
-                // We'll translate our 0-100% to 0-3000 index scale purely for the visual aesthetic of the PDF
                 const yTicks = [0, 500, 1000, 1500, 2000, 2500, 3000];
                 yTicks.forEach(tick => {
-                    const val = tick / 3000; // normalized 0-1
+                    const val = tick / 3000; 
                     const y = mapY(val);
-                    // Light green/gray grid line
                     svgContent += `<line x1="${ml}" y1="${y}" x2="${width - mr + 20}" y2="${y}" stroke="#E2E8F0" stroke-width="1.5"/>`;
-                    // Label
                     svgContent += `<text x="${ml - 10}" y="${y + 4}" fill="#64748B" font-size="11" text-anchor="end" class="chart-font">${tick.toLocaleString()}</text>`;
                 });
 
-                // Y-Axis title
                 svgContent += `<text x="-${height/2}" y="15" fill="#64748B" font-size="12" font-weight="600" text-anchor="middle" transform="rotate(-90)" class="chart-font">Mastery Index (0 = 0, 3000 = 100%)</text>`;
-                // "1961 baseline" equivalent
                 svgContent += `<text x="${ml + 5}" y="${mapY(0) - 5}" fill="#64748B" font-size="11" class="chart-font italic">Baseline start</text>`;
 
-                // --- Draw X-Axis (Years/Months) ---
-                // Determine sensible ticks based on timeSpan
                 const spanDays = paddedSpan / (1000 * 60 * 60 * 24);
                 let tickIntervalMonths = 1;
-                if (spanDays > 1000) tickIntervalMonths = 12; // Yearly if > 3 years
-                else if (spanDays > 300) tickIntervalMonths = 3; // Quarterly if > 10 months
+                if (spanDays > 1000) tickIntervalMonths = 12; 
+                else if (spanDays > 300) tickIntervalMonths = 3; 
 
                 let currentTick = new Date(renderMinTime);
-                currentTick.setDate(1); // Start of month
+                currentTick.setDate(1);
                 
                 while (currentTick.getTime() <= renderMaxTime) {
                     const x = mapX(currentTick.getTime());
                     if (x >= ml && x <= width - mr) {
                         const label = spanDays > 1000 ? currentTick.getFullYear() : currentTick.toLocaleDateString('default', { month: 'short', year: 'numeric' });
                         
-                        // Tick mark
                         svgContent += `<line x1="${x}" y1="${mapY(0)}" x2="${x}" y2="${mapY(0) + 5}" stroke="#94A3B8" stroke-width="1.5"/>`;
-                        // Label
                         svgContent += `<text x="${x}" y="${mapY(0) + 20}" fill="#64748B" font-size="11" text-anchor="middle" class="chart-font">${label}</text>`;
                     }
                     currentTick.setMonth(currentTick.getMonth() + tickIntervalMonths);
                 }
 
-                // Solid axis line
                 svgContent += `<line x1="${ml}" y1="${mapY(0)}" x2="${width - mr + 20}" y2="${mapY(0)}" stroke="#94A3B8" stroke-width="1.5"/>`;
 
-
-                // --- Draw Journeys ---
-                // Sort by current percent so higher values are drawn last (on top)
+                // Sort purely for visual layering (highest progress on top)
                 const sortedJourneys = [...this.state.journeys].sort((a,b) => (a.currentSession/a.totalSessions) - (b.currentSession/b.totalSessions));
 
                 sortedJourneys.forEach((j) => {
                     const durationMs = j.weeks * 7 * 24 * 60 * 60 * 1000;
                     
-                    // Generate points for the S-Curve
                     const pointsCount = 100;
                     const midpoint = j.totalSessions / 2;
-                    const k = 10 / j.totalSessions; // Steepness
+                    const k = 10 / j.totalSessions; 
 
                     let pathDataFull = "";
                     let pathDataProgress = "";
@@ -485,11 +510,9 @@
                     let endX, endY;
 
                     for (let i = 0; i <= pointsCount; i++) {
-                        // Math logic
                         const sessionEquivalent = (i / pointsCount) * j.totalSessions;
                         const timeEquivalent = j.startDate + (i / pointsCount) * durationMs;
                         
-                        // Sigmoid function
                         const yVal = 1 / (1 + Math.exp(-k * (sessionEquivalent - midpoint)));
                         
                         const px = mapX(timeEquivalent);
@@ -504,7 +527,6 @@
                         
                         pathDataFull += pointStr;
 
-                        // Only build the solid path up to the current progress
                         if (sessionEquivalent <= j.currentSession) {
                             pathDataProgress += pointStr;
                             lastProgressX = px;
@@ -512,27 +534,18 @@
                         }
                     }
 
-                    // For instances where progress is exactly 0
                     if (!lastProgressX) {
                         lastProgressX = mapX(j.startDate);
                         lastProgressY = mapY(1 / (1 + Math.exp(-k * (0 - midpoint))));
                         pathDataProgress = `M ${lastProgressX} ${lastProgressY}`;
                     }
 
-                    // Group for hover effects
                     svgContent += `<g class="curve-group cursor-pointer">`;
-
-                    // Full projected path (faded/dashed)
                     svgContent += `<path d="${pathDataFull}" fill="none" stroke="${j.color}" stroke-width="2" stroke-dasharray="4,4" opacity="0.4" class="curve-full transition-all duration-300"/>`;
-
-                    // Completed progress path (solid, thick)
                     svgContent += `<path d="${pathDataProgress}" fill="none" stroke="${j.color}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" class="curve-progress transition-all duration-300"/>`;
-
-                    // Current node dot
                     svgContent += `<circle cx="${lastProgressX}" cy="${lastProgressY}" r="4" fill="${j.color}" stroke="#fff" stroke-width="1.5" />`;
 
-                    // Label at the end of the line (matching the PDF aesthetic)
-                    const percentStr = Math.round((j.currentSession / j.totalSessions) * 3000); // Translated to the 3000 scale
+                    const percentStr = Math.round((j.currentSession / j.totalSessions) * 3000);
                     svgContent += `
                         <text x="${endX + 8}" y="${endY + 4}" fill="${j.color}" font-size="13" font-weight="600" class="chart-font">
                             ${j.name} (${percentStr})
@@ -547,10 +560,8 @@
             }
         };
 
-        // Initialize when DOM is ready
-        document.addEventListener('DOMContentLoaded', () => {
-            app.init();
-        });
+        // Start App
+        window.app.init();
     </script>
 </body>
 </html>
