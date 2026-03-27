@@ -1,1 +1,1 @@
-# Instructions on how to use the Growth Map
+# How to Use the Growth Map
