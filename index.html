@@ -232,7 +232,10 @@
 
             // Instantly creates a new event curve and saves it
             async createNewEvent() {
-                if (!currentUser) return;
+                if (!currentUser) {
+                    console.warn("Still connecting to database, please try again in a moment.");
+                    return;
+                }
                 
                 const color = this.palette[this.state.journeys.length % this.palette.length];
                 const docId = Date.now().toString();
@@ -247,16 +250,17 @@
                     createdAt: Date.now()
                 };
 
+                // Optimistic UI Update: Instantly add to local state and render the canvas
+                this.state.journeys.push({ id: docId, ...newEvent });
+                this.render();
+                
+                // Open the properties panel immediately
+                this.editJourney(docId);
+
                 try {
-                    // This instantly triggers the listener and draws the curve on canvas
+                    // Save to cloud in the background so there's no UI freezing
                     const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'journeys', docId);
                     await setDoc(docRef, newEvent);
-                    
-                    // Open the properties panel to edit it after a short delay
-                    setTimeout(() => {
-                        this.editJourney(docId);
-                    }, 200);
-
                 } catch (error) {
                     console.error("Error constructing new event:", error);
                 }
@@ -269,7 +273,11 @@
                 this.state.editingId = id;
                 
                 document.getElementById('j-name').value = journey.name;
-                document.getElementById('j-start').valueAsDate = new Date(journey.startDate);
+                
+                // Safely format date to prevent timezone shift issues in date picker
+                const d = new Date(journey.startDate);
+                document.getElementById('j-start').value = d.toISOString().split('T')[0];
+                
                 document.getElementById('j-weeks').value = journey.weeks;
                 document.getElementById('j-freq').value = Math.round(journey.totalSessions / journey.weeks);
                 document.getElementById('j-color').value = journey.color;
@@ -289,7 +297,8 @@
 
                 const name = document.getElementById('j-name').value || 'New Event';
                 const startInput = document.getElementById('j-start').value;
-                const startDate = startInput ? new Date(startInput).getTime() : Date.now();
+                // Add T12:00:00 to prevent timezone drift when saving
+                const startDate = startInput ? new Date(startInput + 'T12:00:00').getTime() : Date.now();
                 const weeks = parseInt(document.getElementById('j-weeks').value) || 12;
                 const frequency = parseInt(document.getElementById('j-freq').value) || 3;
                 const color = document.getElementById('j-color').value || this.palette[0];
