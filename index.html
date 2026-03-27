@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Natural Growth Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap');
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #F9F8F6; /* Rice white */
+            color: #2D3748;
+        }
+
+        /* Custom pulsing animation for the next actionable point */
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+        }
+
+        .pulse-point {
+            animation: pulse-green 2s infinite;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .pulse-point:hover {
+            transform: scale(1.5);
+        }
+
+        .nature-shadow {
+            box-shadow: 0 10px 25px -5px rgba(22, 101, 52, 0.1), 0 8px 10px -6px rgba(22, 101, 52, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-md border-b border-[#E2E8F0] sticky top-0 z-10">
+        <div class="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="app.renderDashboard()">
+                <!-- Leaf Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
+                    <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+                </svg>
+                <h1 class="text-2xl font-semibold text-[#166534]">Growth<span class="text-[#4ade80]">Curve</span></h1>
+            </div>
+            <button onclick="app.showCreateForm()" class="hidden md:block bg-[#166534] hover:bg-[#14532d] text-white px-5 py-2 rounded-full text-sm font-medium transition-colors">
+                Plant a New Seed
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="app-content" class="flex-grow max-w-5xl mx-auto px-6 py-8 w-full">
+        <!-- Content injected by JS -->
+    </main>
+
+    <script>
+        const app = {
+            // In-memory state
+            state: {
+                journeys: [],
+                currentView: 'dashboard', // 'dashboard', 'create', 'journey'
+                activeJourneyId: null
+            },
+
+            init() {
+                this.renderDashboard();
+            },
+
+            // --- Views ---
+
+            renderDashboard() {
+                this.state.currentView = 'dashboard';
+                const container = document.getElementById('app-content');
+                
+                if (this.state.journeys.length === 0) {
+                    container.innerHTML = `
+                        <div class="flex flex-col items-center justify-center text-center mt-20">
+                            <div class="bg-white p-6 rounded-full nature-shadow mb-6">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4-4 4-10 0-14"/><path d="M12 22c-4-4-4-10 0-14"/><path d="M12 2v6"/></svg>
+                            </div>
+                            <h2 class="text-3xl font-semibold text-[#166534] mb-3">Your garden is empty</h2>
+                            <p class="text-gray-600 max-w-md mb-8">Start tracking an exponential growth journey. Whether it's fitness, a new language, or a skill, watch your S-Curve develop over time.</p>
+                            <button onclick="app.showCreateForm()" class="bg-[#4ade80] hover:bg-[#22c55e] text-white px-8 py-3 rounded-full text-lg font-medium transition-colors nature-shadow">
+                                Start a Journey
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    let html = `<div class="flex justify-between items-end mb-8">
+                                    <h2 class="text-3xl font-semibold text-[#166534]">Your Journeys</h2>
+                                    <button onclick="app.showCreateForm()" class="text-[#166534] font-medium hover:text-[#4ade80] transition-colors">+ New Journey</button>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">`;
+                    
+                    this.state.journeys.forEach(journey => {
+                        const progressPercent = Math.round((journey.currentSession / journey.totalSessions) * 100);
+                        html += `
+                            <div onclick="app.viewJourney(${journey.id})" class="bg-white rounded-2xl p-6 cursor-pointer nature-shadow hover:-translate-y-1 transition-transform border border-transparent hover:border-[#4ade80]">
+                                <h3 class="text-xl font-semibold mb-2">${journey.name}</h3>
+                                <p class="text-sm text-gray-500 mb-4">${journey.frequency} times/week • ${journey.weeks} weeks</p>
+                                <div class="w-full bg-[#F9F8F6] rounded-full h-2.5 mb-2 overflow-hidden">
+                                    <div class="bg-[#4ade80] h-2.5 rounded-full" style="width: ${progressPercent}%"></div>
+                                </div>
+                                <div class="flex justify-between text-xs text-gray-500">
+                                    <span>Session ${journey.currentSession} of ${journey.totalSessions}</span>
+                                    <span>${progressPercent}%</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += `</div>`;
+                    container.innerHTML = html;
+                }
+            },
+
+            showCreateForm() {
+                this.state.currentView = 'create';
+                const container = document.getElementById('app-content');
+                container.innerHTML = `
+                    <div class="max-w-xl mx-auto bg-white p-8 rounded-3xl nature-shadow">
+                        <button onclick="app.renderDashboard()" class="text-sm text-gray-500 hover:text-[#166534] mb-6 flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> Back
+                        </button>
+                        <h2 class="text-2xl font-semibold text-[#166534] mb-6">Plant a New Seed</h2>
+                        
+                        <div class="space-y-5">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Journey Name</label>
+                                <input type="text" id="j-name" placeholder="e.g., Fitness, Piano, Coding" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#4ade80] focus:border-transparent bg-[#F9F8F6]">
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Times per week</label>
+                                    <select id="j-freq" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#4ade80] focus:border-transparent bg-[#F9F8F6]">
+                                        <option value="1">1 time</option>
+                                        <option value="2">2 times</option>
+                                        <option value="3" selected>3 times</option>
+                                        <option value="4">4 times</option>
+                                        <option value="5">5 times</option>
+                                        <option value="6">6 times</option>
+                                        <option value="7">Every day</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Weeks to Plateau</label>
+                                    <input type="number" id="j-weeks" value="12" min="1" max="100" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#4ade80] focus:border-transparent bg-[#F9F8F6]">
+                                </div>
+                            </div>
+
+                            <div class="pt-4">
+                                <button onclick="app.createJourney()" class="w-full bg-[#166534] hover:bg-[#14532d] text-white px-6 py-3 rounded-xl text-lg font-medium transition-colors">
+                                    Start Growing
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            createJourney() {
+                const name = document.getElementById('j-name').value || 'My Journey';
+                const frequency = parseInt(document.getElementById('j-freq').value);
+                const weeks = parseInt(document.getElementById('j-weeks').value);
+                const totalSessions = frequency * weeks;
+
+                const newJourney = {
+                    id: Date.now(),
+                    name,
+                    frequency,
+                    weeks,
+                    totalSessions,
+                    currentSession: 0
+                };
+
+                this.state.journeys.push(newJourney);
+                this.viewJourney(newJourney.id);
+            },
+
+            viewJourney(id) {
+                this.state.currentView = 'journey';
+                this.state.activeJourneyId = id;
+                const journey = this.state.journeys.find(j => j.id === id);
+                if (!journey) return;
+
+                const container = document.getElementById('app-content');
+                
+                // Math for the S-Curve (Sigmoid)
+                // f(x) = 1 / (1 + e^-k(x-x0))
+                const width = 800;
+                const height = 400;
+                const paddingX = 40;
+                const paddingY = 40;
+                const usableWidth = width - (paddingX * 2);
+                const usableHeight = height - (paddingY * 2);
+                
+                const x0 = journey.totalSessions / 2;
+                const k = 10 / journey.totalSessions; // Spread the steepness nicely across total sessions
+
+                let fullPath = "";
+                let progressPath = "";
+                let points = [];
+
+                for (let i = 0; i <= journey.totalSessions; i++) {
+                    const yVal = 1 / (1 + Math.exp(-k * (i - x0))); // Returns 0.0 to 1.0
+                    
+                    const cx = paddingX + ((i / journey.totalSessions) * usableWidth);
+                    const cy = height - paddingY - (yVal * usableHeight);
+                    
+                    points.push({ session: i, x: cx, y: cy });
+
+                    const pointString = `${i === 0 ? 'M' : 'L'} ${cx} ${cy} `;
+                    fullPath += pointString;
+                    if (i <= journey.currentSession) {
+                        progressPath += pointString;
+                    }
+                }
+
+                // Determine the "Next" point coordinates for the interactive button
+                const nextPoint = journey.currentSession < journey.totalSessions 
+                    ? points[journey.currentSession + 1] 
+                    : points[journey.totalSessions];
+
+                const currentPoint = points[journey.currentSession];
+
+                container.innerHTML = `
+                    <div class="mb-6 flex justify-between items-center">
+                        <button onclick="app.renderDashboard()" class="text-sm text-gray-500 hover:text-[#166534] flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> Back to Garden
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-3xl p-8 nature-shadow mb-8 relative overflow-hidden">
+                        <!-- Decorative element -->
+                        <div class="absolute -top-10 -right-10 w-32 h-32 bg-[#4ade80] opacity-10 rounded-full blur-2xl"></div>
+
+                        <div class="flex justify-between items-end mb-8">
+                            <div>
+                                <h2 class="text-3xl font-semibold text-[#166534] mb-2">${journey.name}</h2>
+                                <p class="text-gray-500">Session ${journey.currentSession} of ${journey.totalSessions} • Plateau in ${journey.weeks} weeks</p>
+                            </div>
+                            ${journey.currentSession < journey.totalSessions ? `
+                                <button onclick="app.logProgress()" class="bg-[#166534] hover:bg-[#14532d] text-white px-6 py-2 rounded-full font-medium transition-colors shadow-lg flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                                    Log Session
+                                </button>
+                            ` : `
+                                <div class="bg-gray-100 text-[#166534] px-6 py-2 rounded-full font-medium flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+                                    Plateau Reached
+                                </div>
+                            `}
+                        </div>
+
+                        <!-- S-Curve Chart -->
+                        <div class="w-full overflow-x-auto">
+                            <svg viewBox="0 0 ${width} ${height}" class="w-full h-auto min-w-[600px] bg-[#F9F8F6] rounded-2xl border border-gray-100">
+                                <!-- Grid Lines -->
+                                <line x1="${paddingX}" y1="${height - paddingY}" x2="${width - paddingX}" y2="${height - paddingY}" stroke="#E2E8F0" stroke-width="1" />
+                                <line x1="${paddingX}" y1="${paddingY}" x2="${width - paddingX}" y2="${paddingY}" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="5,5" />
+                                
+                                <text x="${paddingX}" y="${height - paddingY + 20}" fill="#94A3B8" font-size="12">Start</text>
+                                <text x="${width - paddingX}" y="${height - paddingY + 20}" fill="#94A3B8" font-size="12" text-anchor="end">Plateau (Goal)</text>
+
+                                <!-- Full projected path (dashed/light) -->
+                                <path d="${fullPath}" fill="none" stroke="#bbf7d0" stroke-width="4" stroke-dasharray="8,8" stroke-linecap="round"/>
+                                
+                                <!-- Completed progress path (solid/dark) -->
+                                <path d="${progressPath}" fill="none" stroke="#166534" stroke-width="4" stroke-linecap="round"/>
+
+                                <!-- Completed Points -->
+                                ${points.slice(0, journey.currentSession + 1).map(p => `
+                                    <circle cx="${p.x}" cy="${p.y}" r="4" fill="#166534" />
+                                `).join('')}
+
+                                <!-- Current Progress Node -->
+                                <circle cx="${currentPoint.x}" cy="${currentPoint.y}" r="8" fill="#4ade80" stroke="#fff" stroke-width="3" />
+
+                                <!-- Interactive "Next" Node -->
+                                ${journey.currentSession < journey.totalSessions ? `
+                                    <g onclick="app.logProgress()" class="pulse-point">
+                                        <circle cx="${nextPoint.x}" cy="${nextPoint.y}" r="10" fill="#4ade80" />
+                                        <circle cx="${nextPoint.x}" cy="${nextPoint.y}" r="4" fill="#fff" />
+                                        <text x="${nextPoint.x}" y="${nextPoint.y - 20}" fill="#166534" font-size="12" font-weight="bold" text-anchor="middle" class="bg-white">Click to log</text>
+                                    </g>
+                                ` : ''}
+                            </svg>
+                        </div>
+                        
+                        <div class="mt-6 text-center text-sm text-gray-500">
+                            The curve grows slowly at first as you build foundations, accelerates as things click, and eventually plateaus as you reach mastery.
+                        </div>
+                    </div>
+                `;
+            },
+
+            logProgress() {
+                const journey = this.state.journeys.find(j => j.id === this.state.activeJourneyId);
+                if (journey && journey.currentSession < journey.totalSessions) {
+                    journey.currentSession += 1;
+                    this.viewJourney(journey.id); // Re-render to show animation
+                }
+            }
+        };
+
+        // Initialize the app when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>
