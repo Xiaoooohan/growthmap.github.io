@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Natural Growth Tracker</title>
+    
+    <!-- This is your new site logo (favicon)! -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;600&display=swap');
@@ -87,7 +91,7 @@
 
         <!-- Add Form (Hidden by default) -->
         <div id="add-form" class="hidden p-6 bg-slate-50 border-b border-slate-200 text-sm">
-            <h3 class="font-medium text-slate-700 mb-4">Plant a New Seed</h3>
+            <h3 id="form-title" class="font-medium text-slate-700 mb-4">Plant a New Seed</h3>
             <div class="space-y-3">
                 <div>
                     <label class="block text-xs text-slate-500 mb-1">Name</label>
@@ -107,9 +111,24 @@
                         <input type="number" id="j-freq" value="3" min="1" max="7" class="w-full px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-slate-500">
                     </div>
                 </div>
-                <button onclick="app.createJourney()" class="w-full mt-2 bg-[#2E7D32] hover:bg-[#1B5E20] text-white py-2 rounded-md font-medium transition-colors">
-                    Add to Timeline
-                </button>
+                <div>
+                    <label class="block text-xs text-slate-500 mb-1">Color Theme</label>
+                    <div class="flex items-center gap-2 mb-2" id="palette-swatches">
+                        <!-- Swatches injected via JS -->
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="color" id="j-color" value="#2E7D32" class="h-8 w-12 cursor-pointer rounded border border-slate-300 p-0.5 bg-white">
+                        <span class="text-xs text-slate-500">Custom color</span>
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-4">
+                    <button onclick="app.saveJourney()" id="form-submit-btn" class="flex-1 bg-[#2E7D32] hover:bg-[#1B5E20] text-white py-2 rounded-md font-medium transition-colors">
+                        Add to Timeline
+                    </button>
+                    <button onclick="app.cancelEdit()" id="form-cancel-btn" class="hidden px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 py-2 rounded-md font-medium transition-colors">
+                        Cancel
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -134,12 +153,23 @@
 
             state: {
                 isFormOpen: false,
+                editingId: null,
                 journeys: []
             },
 
             init() {
                 // Set default date in form to today
                 document.getElementById('j-start').valueAsDate = new Date();
+
+                // Build palette swatches automatically from the chart colors
+                const swatchesContainer = document.getElementById('palette-swatches');
+                this.palette.forEach(color => {
+                    const btn = document.createElement('button');
+                    btn.className = "w-6 h-6 rounded-full border border-slate-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-slate-400 transition-all shadow-sm";
+                    btn.style.backgroundColor = color;
+                    btn.onclick = () => document.getElementById('j-color').value = color;
+                    swatchesContainer.appendChild(btn);
+                });
 
                 // Add some initial dummy data so the canvas isn't empty on first load
                 const today = new Date();
@@ -186,30 +216,94 @@
             toggleForm() {
                 this.state.isFormOpen = !this.state.isFormOpen;
                 document.getElementById('add-form').classList.toggle('hidden', !this.state.isFormOpen);
+                if (!this.state.isFormOpen && this.state.editingId) {
+                    this.cancelEdit();
+                }
             },
 
-            createJourney() {
+            editJourney(id) {
+                const journey = this.state.journeys.find(j => j.id === id);
+                if (!journey) return;
+
+                this.state.editingId = id;
+                
+                // Populate form
+                document.getElementById('j-name').value = journey.name;
+                document.getElementById('j-start').valueAsDate = new Date(journey.startDate);
+                document.getElementById('j-weeks').value = journey.weeks;
+                document.getElementById('j-freq').value = Math.round(journey.totalSessions / journey.weeks);
+                document.getElementById('j-color').value = journey.color;
+
+                // Update UI for editing
+                document.getElementById('form-title').innerText = "Edit Journey";
+                document.getElementById('form-submit-btn').innerText = "Save Changes";
+                document.getElementById('form-cancel-btn').classList.remove('hidden');
+
+                // Open form if closed
+                if (!this.state.isFormOpen) {
+                    this.state.isFormOpen = true;
+                    document.getElementById('add-form').classList.remove('hidden');
+                }
+            },
+
+            cancelEdit() {
+                this.state.editingId = null;
+                
+                // Reset form to default creation state
+                document.getElementById('j-name').value = '';
+                document.getElementById('j-start').valueAsDate = new Date();
+                document.getElementById('j-weeks').value = 12;
+                document.getElementById('j-freq').value = 3;
+                document.getElementById('j-color').value = this.palette[this.state.journeys.length % this.palette.length];
+
+                // Reset UI buttons
+                document.getElementById('form-title').innerText = "Plant a New Seed";
+                document.getElementById('form-submit-btn').innerText = "Add to Timeline";
+                document.getElementById('form-cancel-btn').classList.add('hidden');
+            },
+
+            saveJourney() {
                 const name = document.getElementById('j-name').value || 'New Journey';
                 const startInput = document.getElementById('j-start').value;
                 const startDate = startInput ? new Date(startInput).getTime() : Date.now();
                 const weeks = parseInt(document.getElementById('j-weeks').value) || 12;
                 const frequency = parseInt(document.getElementById('j-freq').value) || 3;
-                
-                const newJourney = {
-                    id: Date.now(),
-                    name,
-                    startDate,
-                    weeks,
-                    totalSessions: weeks * frequency,
-                    currentSession: 0,
-                    color: this.palette[this.state.journeys.length % this.palette.length]
-                };
+                const color = document.getElementById('j-color').value || this.palette[0];
+                const totalSessions = weeks * frequency;
 
-                this.state.journeys.push(newJourney);
+                if (this.state.editingId) {
+                    // Update existing journey
+                    const journey = this.state.journeys.find(j => j.id === this.state.editingId);
+                    if (journey) {
+                        journey.name = name;
+                        journey.startDate = startDate;
+                        journey.weeks = weeks;
+                        journey.color = color;
+                        journey.totalSessions = totalSessions;
+                        
+                        // Ensure current session isn't out of bounds if they shortened the goal
+                        if (journey.currentSession > totalSessions) {
+                            journey.currentSession = totalSessions;
+                        }
+                    }
+                } else {
+                    // Create new journey
+                    const newJourney = {
+                        id: Date.now(),
+                        name,
+                        startDate,
+                        weeks,
+                        totalSessions,
+                        currentSession: 0,
+                        color
+                    };
+                    this.state.journeys.push(newJourney);
+                }
                 
-                // Reset form
-                document.getElementById('j-name').value = '';
-                this.toggleForm();
+                this.cancelEdit();
+                if(this.state.isFormOpen) {
+                    this.toggleForm(); 
+                }
                 this.render();
             },
 
@@ -253,9 +347,14 @@
                             <div class="ml-2">
                                 <div class="flex justify-between items-start mb-1">
                                     <h4 class="font-medium text-slate-800">${j.name}</h4>
-                                    <button onclick="app.deleteJourney(${j.id})" class="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                    </button>
+                                    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onclick="app.editJourney(${j.id})" class="text-slate-400 hover:text-blue-600 p-1" title="Edit">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                        </button>
+                                        <button onclick="app.deleteJourney(${j.id})" class="text-slate-400 hover:text-red-500 p-1" title="Delete">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="text-xs text-slate-500 mb-3">
                                     Started ${new Date(j.startDate).toLocaleDateString()} • ${j.weeks}wks
