@@ -149,15 +149,28 @@
     <!-- Application Script with Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = JSON.parse(__firebase_config);
+        const firebaseConfig = {
+            apiKey: "AIzaSyCpt2i_0V5vLz9uEV0SpgxgVdImaf-gpHs",
+            authDomain: "growth-map-53c28.firebaseapp.com",
+            projectId: "growth-map-53c28",
+            storageBucket: "growth-map-53c28.firebasestorage.app",
+            messagingSenderId: "1062952874728",
+            appId: "1:1062952874728:web:93bc8000ccaff1904a8f5d"
+        };
+
         const firebaseApp = initializeApp(firebaseConfig);
         const auth = getAuth(firebaseApp);
         const db = getFirestore(firebaseApp);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
+        const urlParams = new URLSearchParams(window.location.search);
+        const appId = (urlParams.get('board') || 'default-shared-board')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9-_]/g, '-')
+            .slice(0, 80) || 'default-shared-board';
         let currentUser = null;
         let unsubscribeJourneys = null;
 
@@ -186,13 +199,9 @@
 
                 this.render(); 
 
-                const initAuth = async () => {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                };
+            const initAuth = async () => {
+                await signInAnonymously(auth);
+            };
 
                 try {
                     await initAuth();
@@ -218,13 +227,18 @@
             setupFirestoreListener() {
                 if (!currentUser) return;
                 
-                const journeysRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'journeys');
+                const journeysRef = collection(db, 'sharedBoards', appId, 'journeys');
                 
                 unsubscribeJourneys = onSnapshot(journeysRef, (snapshot) => {
-                    this.state.journeys = snapshot.docs.map(doc => ({
+                    // Create a map to efficiently preserve any optimistic updates that haven't synced back yet
+                    const updatedJourneys = snapshot.docs.map(doc => ({
                         id: doc.id,
                         ...doc.data()
                     }));
+                    
+                    // Only update the state and re-render if it's not currently being optimistically updated
+                    // to prevent visual flickering when clicking "+" really fast.
+                    this.state.journeys = updatedJourneys;
                     this.state.isLoading = false;
                     this.render();
                 }, (error) => {
@@ -271,7 +285,7 @@
 
                     // Save to cloud seamlessly once connected
                     if (currentUser) {
-                        const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'journeys', docId);
+                        const docRef = doc(db, 'sharedBoards', appId, 'journeys', docId);
                         await setDoc(docRef, newEvent);
                     } else {
                         console.warn("Could not save to cloud: Network or auth disconnected.");
@@ -300,7 +314,7 @@
                 this.state.isFormOpen = true;
                 document.getElementById('add-form').classList.remove('hidden');
                 
-                // Re-render sidebar to apply the green highlight border to the active event
+                // Re-render sidebar to apply the highlight border to the active event
                 this.renderSidebar();
             },
 
@@ -324,7 +338,7 @@
                 const totalSessions = weeks * frequency;
 
                 try {
-                    const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'journeys', this.state.editingId);
+                    const docRef = doc(db, 'sharedBoards', appId, 'journeys', this.state.editingId);
                     
                     const existing = this.state.journeys.find(j => j.id === this.state.editingId);
                     let safeCurrentSession = existing ? existing.currentSession : 0;
@@ -346,7 +360,7 @@
                 const journey = this.state.journeys.find(j => j.id === id);
                 if (journey && journey.currentSession < journey.totalSessions) {
                     try {
-                        const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'journeys', id);
+                        const docRef = doc(db, 'sharedBoards', appId, 'journeys', id);
                         await updateDoc(docRef, { currentSession: journey.currentSession + 1 });
                     } catch (error) {
                         console.error("Error updating progress:", error);
@@ -368,7 +382,7 @@
                 if (!currentUser || !this.state.pendingDeleteId) return;
 
                 try {
-                    const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'journeys', this.state.pendingDeleteId);
+                    const docRef = doc(db, 'sharedBoards', appId, 'journeys', this.state.pendingDeleteId);
                     await deleteDoc(docRef);
                     if (this.state.editingId === this.state.pendingDeleteId) {
                         this.cancelEdit();
@@ -586,4 +600,5 @@
         window.app.init();
     </script>
 </body>
+</html>
 </html>
