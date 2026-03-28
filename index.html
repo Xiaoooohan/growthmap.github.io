@@ -184,7 +184,8 @@
                 editingId: null,
                 pendingDeleteId: null,
                 isLoading: true,
-                journeys: []
+                journeys: [],
+                pendingLocalIds: new Set()
             },
 
             async init() {
@@ -200,7 +201,9 @@
                 this.render(); 
 
             const initAuth = async () => {
-                await signInAnonymously(auth);
+                if (!auth.currentUser) {
+                    await signInAnonymously(auth);
+                }
             };
 
                 try {
@@ -230,15 +233,18 @@
                 const journeysRef = collection(db, 'sharedBoards', appId, 'journeys');
                 
                 unsubscribeJourneys = onSnapshot(journeysRef, (snapshot) => {
-                    // Create a map to efficiently preserve any optimistic updates that haven't synced back yet
-                    const updatedJourneys = snapshot.docs.map(doc => ({
+                    const remoteJourneys = snapshot.docs.map(doc => ({
                         id: doc.id,
                         ...doc.data()
                     }));
-                    
-                    // Only update the state and re-render if it's not currently being optimistically updated
-                    // to prevent visual flickering when clicking "+" really fast.
-                    this.state.journeys = updatedJourneys;
+
+                    const remoteIds = new Set(remoteJourneys.map(j => j.id));
+
+                    const stillPendingLocal = this.state.journeys.filter(j =>
+                        this.state.pendingLocalIds.has(j.id) && !remoteIds.has(j.id)
+                    );
+
+                    this.state.journeys = [...remoteJourneys, ...stillPendingLocal];
                     this.state.isLoading = false;
                     this.render();
                 }, (error) => {
@@ -266,6 +272,7 @@
 
                     // Optimistic UI Update - ALWAYS executes immediately
                     if (!this.state.journeys) this.state.journeys = [];
+                    this.state.pendingLocalIds.add(docId);
                     this.state.journeys.push({ id: docId, ...newEvent });
                     
                     // Force loading off so the canvas and sidebar draw the new element immediately
@@ -287,10 +294,18 @@
                     if (currentUser) {
                         const docRef = doc(db, 'sharedBoards', appId, 'journeys', docId);
                         await setDoc(docRef, newEvent);
+                        this.state.pendingLocalIds.delete(docId);
+                        this.render();
                     } else {
+                        this.state.pendingLocalIds.delete(docId);
+                        this.state.journeys = this.state.journeys.filter(j => j.id !== docId);
+                        this.render();
                         console.warn("Could not save to cloud: Network or auth disconnected.");
                     }
                 } catch(e) {
+                    this.state.pendingLocalIds.delete(docId);
+                    this.state.journeys = this.state.journeys.filter(j => j.id !== docId);
+                    this.render();
                     console.error("Error creating new event:", e);
                 }
             },
@@ -532,7 +547,7 @@
 
                 svgContent += `<line x1="${ml}" y1="${mapY(0)}" x2="${width - mr + 20}" y2="${mapY(0)}" stroke="#94A3B8" stroke-width="1.5"/>`;
 
-                const sortedJourneys = [...this.state.journeys].sort((a,b) => (a.currentSession/a.totalSessions) - (b.currentSession/b.totalSessions));
+                const sortedJourneys = [...this.state.journeys].sort((a,b) => (a.currentSession / Math.max(a.totalSessions, 1)) - (b.currentSession / Math.max(b.totalSessions, 1)));
 
                 sortedJourneys.forEach((j) => {
                     const durationMs = j.weeks * 7 * 24 * 60 * 60 * 1000;
@@ -600,5 +615,4 @@
         window.app.init();
     </script>
 </body>
-</html>
 </html>
